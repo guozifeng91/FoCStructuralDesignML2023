@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import cem_mini
+import cv2
 
 __all__ = ['find_bmus_for_vectors']
 
@@ -46,6 +48,18 @@ def normalize(x):
     std[std==0] = 1
     return (x - mean) / std
 
+__all__ += ['get_normalizer']
+
+def get_normalizer(x):
+    mean = x.mean(axis=0)[None]
+    std = x.std(axis=0)[None]
+    std[std==0] = 1
+
+    normalizer = lambda x : (x - mean) / std
+    denormalizer = lambda x : x * std + mean
+
+    return normalizer, denormalizer
+
 __all__ += ['get_forms_to_show']
 
 def get_forms_to_show(features, lattice):
@@ -76,9 +90,9 @@ def get_forms_to_show(features, lattice):
     form_to_show=[form_to_show[i] if i in form_to_show.keys() else None for i in range(mapsize_)]
     return form_to_show
 
-__all__ += ['render_som']
+__all__ += ['render_som_cells']
 
-def render_som(forms, features, lattice, cell_size = 200, clip_size = 50):
+def render_som_cells(forms, features, lattice, cell_size = 200, clip_size = 25):
     '''
     render the som
     '''
@@ -87,18 +101,23 @@ def render_som(forms, features, lattice, cell_size = 200, clip_size = 50):
 
     # generate plots for the best-representing units
     def _plot_(F):
-        fig = plt.figure(figsize=(8,8))
-        ax=plt.axes([0,0,0.5,1], projection='3d')
+        '''
+        https://stackoverflow.com/questions/35355930/figure-to-image-as-a-numpy-array
+        '''
+        fig = plt.figure(figsize=(4,4))
+        ax=plt.axes([0,0,1,1], projection='3d')
         cem_mini.plot_cem_form(ax,F['coords'],F['edges'],F['edge_forces'],view='3D-45',thickness_base=0.5,thickness_ratio=0.02,load_len_scale=10)
         plt.axis('off')
         # force matplotlib to draw the figure
         fig.canvas.draw()
         # Now we can save it to a numpy array.
         image_data = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+        # reshape
+        image_data = image_data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
         # close matplotlib canvas
         plt.close()
         # return image
-        return image_data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+        return image_data
 
     print('generate cell renderings ...')
 
@@ -114,8 +133,59 @@ def render_som(forms, features, lattice, cell_size = 200, clip_size = 50):
             cell_img = _plot_(F)
             cell_img = cell_img[clip_size:-clip_size, clip_size:-clip_size]
             cell_images.append(cv2.resize(cell_img,(cell_size, cell_size)))
+            # cell_images.append(cell_img)
 
-    # put all cell images together
-    rows = [np.hstack(cell_images[i*mapsize[1]:i*mapsize[1]+mapsize[1]]) for i in range(mapsize[0])] # mapsize[0, 1] are rows and columns
-    som_rendering = np.vstack(rows)
-    return som_rendering
+    cell_img_grid = [cell_images[i*mapsize[1]:i*mapsize[1]+mapsize[1]] for i in range(mapsize[0])]
+    return cell_img_grid
+
+    # # put all cell images together
+    # rows = [np.hstack(cell_images[i*mapsize[1]:i*mapsize[1]+mapsize[1]]) for i in range(mapsize[0])] # mapsize[0, 1] are rows and columns
+    # som_rendering = np.vstack(rows)
+    # return som_rendering
+
+__all__ += ['plot_image_grid']
+def plot_image_grid(cell_img_grid, border=True, highlights=None):
+    '''
+    plot a grid of images using matplotlib
+
+    highlights: list of (row, col) indices, or None
+    '''
+    from mpl_toolkits.axes_grid1 import ImageGrid
+
+    rows = len(cell_img_grid)
+    cols = len(cell_img_grid[0])
+
+    cell_imgs = [col for row in cell_img_grid for col in row]
+
+    if highlights is not None:
+        highlights = [row * cols + col for row, col in highlights]
+        highlights = set(highlights)
+
+    fig = plt.figure(figsize=(12, 12))
+    grid = ImageGrid(fig, 111,  # similar to subplot(111)
+                    nrows_ncols=(rows, cols),
+                    axes_pad=0.1,  # pad between axes in inch.
+                    )
+
+    count = 0
+    for ax, im in zip(grid, cell_imgs):
+        # Iterating over the grid returns the Axes.
+        ax.imshow(im)
+        ax.set_aspect('equal')
+
+        if highlights is not None:
+            show_border = count in highlights
+        else:
+            show_border = border
+
+        if show_border:
+            ax.get_xaxis().set_ticks([])
+            ax.get_yaxis().set_ticks([])
+            # https://matplotlib.org/stable/gallery/text_labels_and_annotations/titles_demo.html
+
+            ax.set_title('(%d, %d)'%(count // cols, count % cols), y=1.0, pad=-12, fontsize=8)
+        else:
+            ax.axis('off')
+
+        count += 1
+    plt.show()
