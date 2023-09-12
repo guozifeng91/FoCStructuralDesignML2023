@@ -48,7 +48,7 @@ def normalize(x):
 
 __all__ += ['get_forms_to_show']
 
-def get_forms_to_show(features, lattic):
+def get_forms_to_show(features, lattice):
     '''
     returns a list of integers, where the i-th element is the index of the best-matching forms for i-th cell
     '''
