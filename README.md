@@ -1,0 +1,2 @@
+# FoCStructuralDesignML2023
+Future of Construction 2023 Symposium, workshop #1, COMPUTATIONAL STRUCTURAL DESIGN SUPPORTED BY MACHINE LEARNING
