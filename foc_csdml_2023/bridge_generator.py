@@ -194,11 +194,11 @@ def bridge_topology(nr,
 
     return T
 
-def plot_bridge(F):
+def plot_bridge(F, figsize=(8,4)):
     '''
     plot the form diagram of the bridge
     '''
-    plt.figure(figsize=(16,8))
+    plt.figure(figsize=figsize)
     ax=plt.axes([0,0,0.5,1], projection='3d')
     cem_mini.plot_cem_form(ax,F['coords'],F['edges'],F['edge_forces'],F['loads'],view='3D-45',thickness_base=0.5,thickness_ratio=0.02,load_len_scale=10)
     plt.axis('on')
